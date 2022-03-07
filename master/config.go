@@ -46,8 +46,8 @@ const (
 //default value
 const (
 	defaultTobeFreedDataPartitionCount         = 1000
-	defaultSecondsToFreeDataPartitionAfterLoad = 5 * 60 // a data partition can only be freed after loading 5 mins
-	defaultIntervalToFreeDataPartition         = 10     // in terms of seconds
+	defaultSecondsToFreeDataPartitionAfterLoad = 5 * 60                      // a data partition can only be freed after loading 5 mins
+	defaultIntervalToFreeDataPartition         = 10                          // in terms of seconds
 	defaultIntervalToCheck                     = 60
 	defaultIntervalToCheckHeartbeat            = 6
 	defaultIntervalToCheckDataPartition        = 5
@@ -107,7 +107,9 @@ type clusterConfig struct {
 
 func newClusterConfig() (cfg *clusterConfig) {
 	cfg = new(clusterConfig)
+	// 免费数据分片的数量
 	cfg.numberOfDataPartitionsToFree = defaultTobeFreedDataPartitionCount
+	// 数据分片被加载后默认的
 	cfg.secondsToFreeDataPartitionAfterLoad = defaultSecondsToFreeDataPartitionAfterLoad
 	cfg.NodeTimeOutSec = defaultNodeTimeOutSec
 	cfg.MissingDataPartitionInterval = defaultMissingDataPartitionInterval

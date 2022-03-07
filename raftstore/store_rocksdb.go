@@ -29,10 +29,14 @@ type RocksDBStore struct {
 
 // NewRocksDBStore returns a new RocksDB instance.
 func NewRocksDBStore(dir string, lruCacheSize, writeBufferSize int) (store *RocksDBStore, err error) {
+	// 根据数据存储目录，创建目录
 	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
 		return
 	}
+
+	// 设置rocksDB的数据存储路径，生成rocksDB的对象
 	store = &RocksDBStore{dir: dir}
+	// 在连接rocksDB的时候，主要设置里的LRU的缓存大小和输出流的缓存大小
 	if err = store.Open(lruCacheSize, writeBufferSize); err != nil {
 		return
 	}

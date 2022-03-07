@@ -53,6 +53,7 @@ type NodeResolver interface {
 
 // Default thread-safe implementation of the NodeResolver interface.
 type nodeResolver struct {
+	// 这里使用一种较高并发的map进行存储，提供线程安全的读写
 	nodeMap sync.Map
 }
 

@@ -94,19 +94,30 @@ func NewServer() *Server {
 
 // Start starts a server
 func (m *Server) Start(cfg *config.Config) (err error) {
+	// m是对象Server的引用，启动就是Server这个对象的启动
+	// 以下操作都是对m这个对象的字段进行赋值
+
+	// 先进行clusterConfig的初始化，初始化一些启动参数，生成config对象
 	m.config = newClusterConfig()
+	// 然后把上一步生成的参数对象赋值给gConfig，也就是此类的变量
 	gConfig = m.config
+	// 创建一个对象leaderinfo，只包含了addr信息，也就是一些ip和port地址信息
 	m.leaderInfo = &LeaderInfo{}
+	// 创建反向代理服务器对象，并把信息放在reverseProxy这个里
 	m.reverseProxy = m.newReverseProxy()
+	// 检查配置的参数是否有问题，若有问题就抛出error，并返回，也就是启动失败
+	// 这里的配置检查，会在生成raftserver时再次检查，但是检查的范围不一致
 	if err = m.checkConfig(cfg); err != nil {
 		log.LogError(errors.Stack(err))
 		return
 	}
 
+	// 生成rocksDB对象
 	if m.rocksDBStore, err = raftstore.NewRocksDBStore(m.storeDir, LRUCacheSize, WriteBufferSize); err != nil {
 		return
 	}
 
+	// 检查配置参数，并生成raftserver之后，赋值到对象字段中
 	if err = m.createRaftServer(); err != nil {
 		log.LogError(errors.Stack(err))
 		return
@@ -151,6 +162,7 @@ func (m *Server) checkConfig(cfg *config.Config) (err error) {
 	m.walDir = cfg.GetString(WalDir)
 	m.storeDir = cfg.GetString(StoreDir)
 	peerAddrs := cfg.GetString(cfgPeers)
+	// 若以上配置有一项为空，那么就会报错
 	if m.ip == "" || m.port == "" || m.walDir == "" || m.storeDir == "" || m.clusterName == "" || peerAddrs == "" {
 		return fmt.Errorf("%v,err:%v,%v,%v,%v,%v,%v,%v", proto.ErrInvalidCfg, "one of (ip,listen,walDir,storeDir,clusterName) is null",
 			m.ip, m.port, m.walDir, m.storeDir, m.clusterName, peerAddrs)
@@ -161,9 +173,11 @@ func (m *Server) checkConfig(cfg *config.Config) (err error) {
 	m.config.faultDomain = cfg.GetBoolWithDefault(faultDomain, false)
 	m.config.heartbeatPort = cfg.GetInt64(heartbeatPortKey)
 	m.config.replicaPort = cfg.GetInt64(replicaPortKey)
+	// 若心跳的端口小于1024是不允许的，就必须改为默认值5901
 	if m.config.heartbeatPort <= 1024 {
 		m.config.heartbeatPort = raftstore.DefaultHeartbeatPort
 	}
+	// 若复制的端口小于1024是不允许的，就必须改为默认值5902
 	if m.config.replicaPort <= 1024 {
 		m.config.replicaPort = raftstore.DefaultReplicaPort
 	}
@@ -196,6 +210,7 @@ func (m *Server) checkConfig(cfg *config.Config) (err error) {
 			return fmt.Errorf("%v,err:%v", proto.ErrInvalidCfg, err.Error())
 		}
 	}
+	// metaNode节点若少于32MB的话，就改为默认值1G
 	if m.config.metaNodeReservedMem < 32*1024*1024 {
 		m.config.metaNodeReservedMem = defaultMetaNodeReservedMem
 	}
@@ -206,11 +221,14 @@ func (m *Server) checkConfig(cfg *config.Config) (err error) {
 			return fmt.Errorf("%v,err:%v", proto.ErrInvalidCfg, err.Error())
 		}
 	}
+	// log保存数量若小于0，会改为默认值，20000
 	if m.retainLogs <= 0 {
 		m.retainLogs = DefaultRetainLogs
 	}
 	syslog.Println("retainLogs=", m.retainLogs)
 
+	// if the data partition has not been reported within this interval  (in terms of seconds), it will be considered as missing
+	// missingDataPartitionInterval此值代表若数据节点在间隔missingDataPartitionInterval时间内没有心跳，就会认为数据节点挂了
 	missingDataPartitionInterval := cfg.GetString(missingDataPartitionInterval)
 	if missingDataPartitionInterval != "" {
 		if m.config.MissingDataPartitionInterval, err = strconv.ParseInt(missingDataPartitionInterval, 10, 0); err != nil {

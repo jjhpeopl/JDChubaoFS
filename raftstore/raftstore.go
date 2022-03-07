@@ -98,11 +98,13 @@ func newRaftLogger(dir string) {
 func NewRaftStore(cfg *Config) (mr RaftStore, err error) {
 	resolver := NewNodeResolver()
 
+	// 设置raft的log日志存储路径
 	newRaftLogger(cfg.RaftPath)
 
 	rc := raft.DefaultConfig()
 	rc.NodeID = cfg.NodeID
 	rc.LeaseCheck = true
+	// 此处检查的值与前面的检查值1024不一致
 	if cfg.HeartbeatPort <= 0 {
 		cfg.HeartbeatPort = DefaultHeartbeatPort
 	}
