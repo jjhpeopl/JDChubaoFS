@@ -122,7 +122,10 @@ func (m *Server) Start(cfg *config.Config) (err error) {
 		log.LogError(errors.Stack(err))
 		return
 	}
+
+	// 初始化集群信息
 	m.initCluster()
+	// 初始化用户权限
 	m.initUser()
 	m.cluster.partition = m.partition
 	m.cluster.idAlloc.partition = m.partition
@@ -130,11 +133,16 @@ func (m *Server) Start(cfg *config.Config) (err error) {
 	if m.cluster.MasterSecretKey, err = cryptoutil.Base64Decode(MasterSecretKey); err != nil {
 		return fmt.Errorf("action[Start] failed %v, err: master service Key invalid = %s", proto.ErrInvalidCfg, MasterSecretKey)
 	}
+	// 这里主要是开启一些定时任务，可以找开发咨询下有哪些定时任务，要一些主要的定时任务，讲解时大概说一下即可
 	m.cluster.scheduleTask()
+	// 启动对外提供api服务，方便进行管理和请求数据
 	m.startHTTPService(ModuleName, cfg)
 	exporter.RegistConsul(m.clusterName, ModuleName, cfg)
+
+	// 增加监控，监控项可以找开发咨询下，讲时可以列举一两个说加了这些监控等等
 	metricsService := newMonitorMetrics(m.cluster)
 	metricsService.start()
+	// 利用计数器来让主协程等待其他协程执行完成，防止被关闭
 	m.wg.Add(1)
 	return nil
 }
@@ -284,6 +292,7 @@ func (m *Server) createRaftServer() (err error) {
 		return errors.Trace(err, "NewRaftStore failed! id[%v] walPath[%v]", m.id, m.walDir)
 	}
 	syslog.Printf("peers[%v],tickInterval[%v],electionTick[%v]\n", m.config.peers, m.tickInterval, m.electionTick)
+	// 这里开始初始化metaDataFsm对象，会把rocksDB对象、raftserver对象、log日志等赋值给metadatafsm对象
 	m.initFsm()
 	partitionCfg := &raftstore.PartitionConfig{
 		ID:      GroupID,
@@ -297,11 +306,14 @@ func (m *Server) createRaftServer() (err error) {
 	return
 }
 func (m *Server) initFsm() {
+	// 生成MetadataFsm对象，并把rocksDB、raftServer等值赋值给此对象字段
 	m.fsm = newMetadataFsm(m.rocksDBStore, m.retainLogs, m.raftStore.RaftServer())
+	// 给MetadataFsm对象赋值一些处理器，如leader选举变更处理器、Follower节点变更处理器
 	m.fsm.registerLeaderChangeHandler(m.handleLeaderChange)
 	m.fsm.registerPeerChangeHandler(m.handlePeerChange)
 
 	// register the handlers for the interfaces defined in the Raft library
+	// 注册以下接口，主要是为了定义raft库开放的一些接口，方便处理相应事件
 	m.fsm.registerApplySnapshotHandler(m.handleApplySnapshot)
 	m.fsm.registerRaftUserCmdApplyHandler(m.handleRaftUserCmd)
 	m.fsm.restore()

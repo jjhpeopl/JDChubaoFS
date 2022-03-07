@@ -144,6 +144,7 @@ func newCluster(name string, leaderInfo *LeaderInfo, fsm *MetadataFsm, partition
 }
 
 func (c *Cluster) scheduleTask() {
+	// 以下都是开启一些定时任务，比如定时检查数据分片、定时检查心跳信息等
 	c.scheduleToCheckDataPartitions()
 	c.scheduleToLoadDataPartitions()
 	c.scheduleToCheckReleaseDataPartitions()
@@ -212,6 +213,7 @@ func (c *Cluster) scheduleToCheckAutoDataPartitionCreation() {
 }
 
 func (c *Cluster) scheduleToCheckDataPartitions() {
+	// 以并发的方式调用此函数，相当于自动开启一个线程来执行，与主线程分隔开
 	go func() {
 		for {
 			if c.partition != nil && c.partition.IsRaftLeader() {

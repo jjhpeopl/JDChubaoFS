@@ -38,10 +38,12 @@ func (m *Server) handleLeaderChange(leader uint64) {
 	log.LogWarnf("action[handleLeaderChange] change leader to [%v] ", m.leaderInfo.addr)
 	m.reverseProxy = m.newReverseProxy()
 
+	// 若当前服务器就是新的leader服务器，那么就需要进行更新处理，否则就不需要处理，只需要清空metaData即可
 	if m.id == leader {
 		Warn(m.clusterName, fmt.Sprintf("clusterID[%v] leader is changed to %v",
 			m.clusterName, m.leaderInfo.addr))
 		if oldLeaderAddr != m.leaderInfo.addr {
+			// 先清空原来的数据，再进行重新加载到内存
 			m.loadMetadata()
 			m.metaReady = true
 		}
@@ -61,15 +63,18 @@ func (m *Server) handlePeerChange(confChange *proto.ConfChange) (err error) {
 	addr := string(confChange.Context)
 	switch confChange.Type {
 	case proto.ConfAddNode:
+		// 若是有从节点增加，就会进入以下流程进行处理
 		var arr []string
 		if arr = strings.Split(addr, colonSplit); len(arr) < 2 {
 			msg = fmt.Sprintf("action[handlePeerChange] clusterID[%v] nodeAddr[%v] is invalid", m.clusterName, addr)
 			break
 		}
+		// 在raft中心增加一个从节点信息，把ip地址、心跳和复制端口号传递进去
 		m.raftStore.AddNodeWithPort(confChange.Peer.ID, arr[0], int(m.config.heartbeatPort), int(m.config.replicaPort))
 		AddrDatabase[confChange.Peer.ID] = string(confChange.Context)
 		msg = fmt.Sprintf("clusterID[%v] peerID:%v,nodeAddr[%v] has been add", m.clusterName, confChange.Peer.ID, addr)
 	case proto.ConfRemoveNode:
+		// 若是移除从节点的话，就走以下流程来进行处理
 		m.raftStore.DeleteNode(confChange.Peer.ID)
 		msg = fmt.Sprintf("clusterID[%v] peerID:%v,nodeAddr[%v] has been removed", m.clusterName, confChange.Peer.ID, addr)
 	}

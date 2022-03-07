@@ -33,8 +33,10 @@ import (
 )
 
 func (m *Server) startHTTPService(modulename string, cfg *config.Config) {
+	// 设置请求url的路由配置，比如/api/cluster这个路径应该由谁去处理，就是在这里定义的
 	router := mux.NewRouter().SkipClean(true)
 	m.registerAPIRoutes(router)
+	// 注册请求中间链，对请求进行拦截并进行简单检查，防止在数据未准备好之前出现访问的情况等
 	m.registerAPIMiddleware(router)
 	exporter.InitWithRouter(modulename, cfg, router, m.port)
 	var server = &http.Server{
@@ -101,6 +103,7 @@ func (m *Server) registerAPIMiddleware(route *mux.Router) {
 }
 
 func (m *Server) registerAPIRoutes(router *mux.Router) {
+	// 这里会生成两种api处理方式，一种是graphql方式，一种是api直接请求处理方式
 	//graphql api for cluster
 	cs := &ClusterService{user: m.user, cluster: m.cluster, conf: m.config, leaderInfo: m.leaderInfo}
 	m.registerHandler(router, proto.AdminClusterAPI, cs.Schema())
